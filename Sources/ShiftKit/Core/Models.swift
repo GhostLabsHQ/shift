@@ -40,8 +40,12 @@ struct Position {
 
 /// Grid + behavior settings from the `[settings]` table.
 struct GridSettings: Equatable {
-    var columns: Int = 24
-    var rows: Int = 12
+    // The grid is a fixed 24×12. Those numbers are highly divisible (24 = halves/
+    // thirds/quarters/sixths/eighths, 12 = halves/thirds/quarters), so every common
+    // split lands on a whole line — and the built-in positions assume this size, so
+    // it isn't configurable. Custom positions are expressed in these grid units.
+    let columns = 24
+    let rows = 12
     var gap: CGFloat = 0               // px between adjacent window edges
     var screenGap: CGFloat = 0         // px outer margin from screen edges
     var menuIcon: String = "rectangle.3.group"   // SF Symbol name, image path, or literal text

@@ -70,8 +70,9 @@ enum ConfigLoader {
 
         var settings = GridSettings()
         if let s = root["settings"]?.table {
-            if let v = s["columns"]?.int { settings.columns = v }
-            if let v = s["rows"]?.int { settings.rows = v }
+            if s["columns"] != nil || s["rows"] != nil {
+                FileLog.write("config: the grid is fixed at 24×12 — ignoring columns/rows in [settings]")
+            }
             settings.gap = number(s["gap"]) ?? settings.gap
             settings.screenGap = number(s["screen_gap"]) ?? settings.screenGap
             if let v = s["menu_icon"]?.string, !v.isEmpty { settings.menuIcon = v }

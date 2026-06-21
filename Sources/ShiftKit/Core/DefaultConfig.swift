@@ -30,8 +30,7 @@ enum DefaultConfig {
     # Edit this file and save — Shift reloads automatically.
 
     [settings]
-    columns = 24
-    rows = 12
+    # The grid is a fixed 24×12 (not configurable); cells below are in those units.
     gap = 0                      # px between adjacent windows
     screen_gap = 0              # px outer margin from screen edges
     # menu_icon: an SF Symbol name (e.g. "square.grid.3x3", "macwindow",
@@ -58,6 +57,13 @@ enum DefaultConfig {
     # Two-thirds
     left-two-thirds  = "cmd+ctrl+e"
     right-two-thirds = "cmd+ctrl+t"
+    # Vertical thirds — stack windows top/middle/bottom (great on portrait displays).
+    # Unbound by default; uncomment and pick shortcuts to enable.
+    # top-third         = ""
+    # middle-third      = ""
+    # bottom-third      = ""
+    # top-two-thirds    = ""
+    # bottom-two-thirds = ""
     # Window actions
     maximize         = "cmd+ctrl+return"
     center           = "cmd+ctrl+c"

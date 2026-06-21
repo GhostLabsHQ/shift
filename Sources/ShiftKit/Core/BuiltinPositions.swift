@@ -15,7 +15,7 @@ enum BuiltinPositions {
         let defaultKey: String?
     }
 
-    private static func half(_ code: String, _ name: String, _ rect: CellRect, _ key: String) -> Spec {
+    private static func half(_ code: String, _ name: String, _ rect: CellRect, _ key: String?) -> Spec {
         Spec(code: code, name: name, category: basicCategory, kind: .cell(rect), defaultKey: key)
     }
 
@@ -37,6 +37,13 @@ enum BuiltinPositions {
         // ── Basic Layout: two-thirds ──
         half("left-two-thirds",  "Left Two-Thirds",  CellRect(x: 0, y: 0, w: 16, h: 12), "cmd+ctrl+e"),
         half("right-two-thirds", "Right Two-Thirds", CellRect(x: 8, y: 0, w: 16, h: 12), "cmd+ctrl+t"),
+        // ── Basic Layout: vertical thirds (stack windows; handy on portrait displays).
+        //    Keyless by default — bind any of these via [keybindings]. (12 / 3 = 4 rows.) ──
+        half("top-third",    "Top Third",    CellRect(x: 0, y: 0, w: 24, h: 4), nil),
+        half("middle-third", "Middle Third", CellRect(x: 0, y: 4, w: 24, h: 4), nil),
+        half("bottom-third", "Bottom Third", CellRect(x: 0, y: 8, w: 24, h: 4), nil),
+        half("top-two-thirds",    "Top Two-Thirds",    CellRect(x: 0, y: 0, w: 24, h: 8), nil),
+        half("bottom-two-thirds", "Bottom Two-Thirds", CellRect(x: 0, y: 4, w: 24, h: 8), nil),
         // ── Basic Layout: window actions ──
         Spec(code: "maximize", name: "Maximize", category: basicCategory, kind: .maximize, defaultKey: "cmd+ctrl+return"),
         Spec(code: "center",   name: "Center",   category: basicCategory, kind: .center,   defaultKey: "cmd+ctrl+c"),

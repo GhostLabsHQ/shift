@@ -1,6 +1,6 @@
 # Shift
 
-A free, open-source macOS window manager driven by a **24×12 grid** and a plain-text config file.
+A free, open-source macOS window manager driven by a fixed **24×12 grid** and a plain-text config file.
 
 Register named positions tied to grid cells (`[x, y, w, h]`) and bind them to keyboard shortcuts. Edit one TOML file; Shift reloads it live. Inspired by Nudge and Magnet, minus the mouse dragging.
 
@@ -32,17 +32,21 @@ On first launch Shift seeds `~/.config/shift/config.toml` with sensible defaults
 
 There are two kinds of positions:
 
-- **Built-in** — the **Basic Layout** group (halves/quarters/thirds/two-thirds +
+- **Built-in** — the **Basic Layout** group (halves/quarters/thirds/two-thirds,
+  vertical top/middle/bottom thirds for stacking on portrait displays, +
   maximize/center/restore) and **Displays** (next/previous). These are baked into
   the app: you can't add, remove, or move them, but you *can* rebind their
   shortcuts in the `[keybindings]` table (keyed by `code`; `""` unbinds, and a
-  deleted line keeps the default).
+  deleted line keeps the default). The vertical thirds are **unbound by default** —
+  give them a shortcut in `[keybindings]` to enable, or trigger them from the menu.
 - **Custom** — fully yours. Add / edit / remove `[[position]]` blocks.
+
+The grid is a fixed **24×12** — those numbers divide cleanly into halves, thirds,
+quarters, sixths, and eighths, so it isn't configurable (and the built-ins rely on
+it). All cells are expressed in those grid units.
 
 ```toml
 [settings]
-columns = 24
-rows = 12
 gap = 0                          # px between adjacent windows
 screen_gap = 0                   # px outer margin
 menu_icon = "rectangle.3.group"  # SF Symbol name, image path, or literal text/emoji

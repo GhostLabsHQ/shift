@@ -18,8 +18,9 @@ func runConfigTests() {
         cell = [0, 0, 8, 8]
         key = "cmd+ctrl+left"
         """)
-        R.equal(config.settings.columns, 16, "columns")
-        R.equal(config.settings.rows, 8, "rows")
+        // The grid is fixed: columns/rows in config are ignored, not honored.
+        R.equal(config.settings.columns, 24, "columns locked at 24")
+        R.equal(config.settings.rows, 12, "rows locked at 12")
         R.equal(config.settings.gap, 6, "gap")
         R.equal(config.settings.screenGap, 12, "screen_gap")
         R.equal(config.settings.menuIcon, "macwindow", "menu_icon")
@@ -44,6 +45,25 @@ func runConfigTests() {
         R.equal(lh?.category, "Basic Layout", "built-in category")
         R.equal(lh?.key?.keyCode, UInt32(kVK_LeftArrow), "built-in default key")
         R.ok(lh?.kind == .cell(CellRect(x: 0, y: 0, w: 12, h: 12)), "built-in geometry")
+    }
+
+    R.noThrow("vertical-third built-ins: keyless by default, bindable, exact thirds") {
+        let config = try ConfigLoader.parse("""
+        [keybindings]
+        middle-third = "cmd+ctrl+m"
+        """)
+        let top = config.positions.first { $0.code == "top-third" }
+        R.ok(top?.isBuiltin == true, "top-third is built-in")
+        R.equal(top?.category, "Basic Layout", "top-third under Basic Layout")
+        R.ok(top?.key == nil, "top-third keyless by default")
+        R.ok(top?.kind == .cell(CellRect(x: 0, y: 0, w: 24, h: 4)), "top-third = exact top third")
+
+        let bottom = config.positions.first { $0.code == "bottom-third" }
+        R.ok(bottom?.kind == .cell(CellRect(x: 0, y: 8, w: 24, h: 4)), "bottom-third = exact bottom third")
+
+        // A keyless built-in can be bound via [keybindings].
+        let middle = config.positions.first { $0.code == "middle-third" }
+        R.equal(middle?.key?.keyCode, UInt32(kVK_ANSI_M), "middle-third bound via keybindings")
     }
 
     R.noThrow("keybindings override and unbind built-ins") {
