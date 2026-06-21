@@ -2,7 +2,7 @@
 
 A free, open-source macOS window manager driven by a **24×12 grid** and a plain-text config file.
 
-Register named positions tied to grid cells (`[x, y, w, h]`) and bind them to keyboard shortcuts. Edit one TOML file; Shift reloads it live. Inspired by [Nudge](../nudge) and Magnet, minus the mouse dragging.
+Register named positions tied to grid cells (`[x, y, w, h]`) and bind them to keyboard shortcuts. Edit one TOML file; Shift reloads it live. Inspired by Nudge and Magnet, minus the mouse dragging.
 
 ## Requirements
 
