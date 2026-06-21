@@ -15,8 +15,8 @@ cd "$(dirname "$0")/.."
 
 APP_NAME="Shift"
 BUNDLE_ID="app.shift.Shift"
-VERSION="0.1.0"
-BUILD_NUM="1"
+VERSION="${VERSION:-0.1.0}"            # override via env (CI passes the release tag)
+BUILD_NUM="${BUILD_NUM:-1}"
 ARCHS="${ARCHS:-}"                     # empty = native arch
 
 DIST="dist"

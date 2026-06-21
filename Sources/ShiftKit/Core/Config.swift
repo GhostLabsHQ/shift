@@ -77,31 +77,82 @@ enum ConfigLoader {
             if let v = s["menu_icon"]?.string, !v.isEmpty { settings.menuIcon = v }
         }
 
-        var positions: [Position] = []
+        // Built-in positions are baked in; the config only rebinds their keys.
+        var overrides: [String: String] = [:]
+        if let kb = root["keybindings"]?.table {
+            for code in kb.keys {
+                if let v = kb[code]?.string { overrides[code] = v }
+            }
+        }
+        let builtins = BuiltinPositions.resolved(overrides: overrides)
+
+        // Custom positions: fully user-defined via [[position]].
+        var customs: [Position] = []
         if let arr = root["position"]?.array {
             for i in 0..<arr.count {
                 guard let table = arr[i].table else { continue }
-                guard let name = table["name"]?.string, !name.isEmpty else {
-                    FileLog.write("config: skipping position #\(i) with no name")
+
+                // Identity: a position needs at least a `code` or a `name`.
+                // `code` is the stable id; `name` is the friendly display name.
+                // Either can be derived from the other for backward compatibility.
+                let rawCode = table["code"]?.string.flatMap { $0.isEmpty ? nil : $0 }
+                let rawName = table["name"]?.string.flatMap { $0.isEmpty ? nil : $0 }
+                guard rawCode != nil || rawName != nil else {
+                    FileLog.write("config: skipping position #\(i) with no name or code")
                     continue
                 }
-                guard let kind = parseKind(name: name, table: table) else {
-                    FileLog.write("config: skipping '\(name)' — needs a `cell` or a valid `action`")
+                let code = rawCode ?? slug(rawName!)
+                let name = rawName ?? humanize(rawCode!)
+
+                guard !BuiltinPositions.codes.contains(code) else {
+                    FileLog.write("config: '\(code)' is a built-in — rebind it via [keybindings], skipping this [[position]]")
                     continue
                 }
+                guard let kind = parseKind(name: code, table: table) else {
+                    FileLog.write("config: skipping '\(code)' — needs a `cell` or a valid `action`")
+                    continue
+                }
+                let category = table["category"]?.string.flatMap { $0.isEmpty ? nil : $0 }
                 var key: Keybinding?
                 if let keyStr = table["key"]?.string {
                     if let kb = KeyParser.keybinding(from: keyStr) {
                         key = kb
                     } else {
-                        FileLog.write("config: '\(name)' has unparseable key '\(keyStr)' — leaving unbound")
+                        FileLog.write("config: '\(code)' has unparseable key '\(keyStr)' — leaving unbound")
                     }
                 }
-                positions.append(Position(name: name, kind: kind, key: key))
+                customs.append(Position(code: code, name: name, category: category, kind: kind, key: key))
             }
         }
 
-        return ShiftConfig(settings: settings, positions: positions)
+        // Menu order: Basic Layout, then the user's custom categories, then Displays.
+        let leading = builtins.filter { $0.category != BuiltinPositions.displaysCategory }
+        let trailing = builtins.filter { $0.category == BuiltinPositions.displaysCategory }
+        return ShiftConfig(settings: settings, positions: leading + customs + trailing)
+    }
+
+    /// "Left Half" → "left-half"  (lowercased, runs of non-alphanumerics → single dash).
+    static func slug(_ s: String) -> String {
+        let lowered = s.lowercased()
+        var out = ""
+        var lastWasDash = false
+        for ch in lowered {
+            if ch.isLetter || ch.isNumber {
+                out.append(ch)
+                lastWasDash = false
+            } else if !lastWasDash {
+                out.append("-")
+                lastWasDash = true
+            }
+        }
+        return out.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+    }
+
+    /// "left-half" → "Left Half"  (separators → spaces, each word capitalized).
+    static func humanize(_ s: String) -> String {
+        s.split(whereSeparator: { $0 == "-" || $0 == "_" || $0 == " " })
+            .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+            .joined(separator: " ")
     }
 
     private static func parseKind(name: String, table: TOMLTable) -> PositionKind? {

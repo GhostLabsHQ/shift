@@ -30,6 +30,15 @@ On first launch grant **Accessibility** access (System Settings → Privacy & Se
 On first launch Shift seeds `~/.config/shift/config.toml` with sensible defaults
 (halves/quarters/thirds/etc. on ⌘⌃ shortcuts). Edit and save — it reloads automatically.
 
+There are two kinds of positions:
+
+- **Built-in** — the **Basic Layout** group (halves/quarters/thirds/two-thirds +
+  maximize/center/restore) and **Displays** (next/previous). These are baked into
+  the app: you can't add, remove, or move them, but you *can* rebind their
+  shortcuts in the `[keybindings]` table (keyed by `code`; `""` unbinds, and a
+  deleted line keeps the default).
+- **Custom** — fully yours. Add / edit / remove `[[position]]` blocks.
+
 ```toml
 [settings]
 columns = 24
@@ -38,18 +47,31 @@ gap = 0                          # px between adjacent windows
 screen_gap = 0                   # px outer margin
 menu_icon = "rectangle.3.group"  # SF Symbol name, image path, or literal text/emoji
 
+# Rebind built-ins (delete a line to keep its default; "" to unbind):
+[keybindings]
+left-half    = "cmd+ctrl+left"
+maximize     = "cmd+ctrl+return"
+next-display = "cmd+ctrl+alt+right"
+# … 18 built-ins total
+
+# Custom positions:
 [[position]]
-name = "left-half"
-cell = [0, 0, 12, 12]            # x, y, w, h  — top-left origin
-key  = "cmd+ctrl+left"
+code     = "center-half"         # stable id
+name     = "Center Half"         # friendly name shown in the menu
+category = "Custom Layout"       # menu grouping
+cell     = [6, 0, 12, 12]        # x, y, w, h  — top-left origin
+key      = "cmd+ctrl+1"
 
 [[position]]
-name = "center-60"               # keyless = menu-only, still in the registry
+code = "reading"                 # keyless = menu-only, still in the registry
 cell = [5, 2, 14, 8]
 ```
 
-Special actions use `action =` instead of `cell`: `maximize`, `center`, `restore`,
-`next-display` / `previous-display`.
+Custom positions can also use `action =` instead of `cell`: `maximize`, `center`,
+`restore`, `next-display` / `previous-display`.
+
+The menu groups positions into submenus by `category`: **Basic Layout**, then your
+custom categories, then **Displays**.
 
 Default modifier scheme: positions on **⌘⌃**, monitor throws on **⌘⌃⌥←/→**.
 

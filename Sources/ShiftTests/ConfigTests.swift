@@ -4,7 +4,7 @@ import Carbon
 func runConfigTests() {
     R.suite("Config")
 
-    R.noThrow("parse settings + position") {
+    R.noThrow("parse settings + custom position") {
         let config = try ConfigLoader.parse("""
         [settings]
         columns = 16
@@ -14,7 +14,7 @@ func runConfigTests() {
         menu_icon = "macwindow"
 
         [[position]]
-        name = "left-half"
+        code = "reading"
         cell = [0, 0, 8, 8]
         key = "cmd+ctrl+left"
         """)
@@ -23,76 +23,165 @@ func runConfigTests() {
         R.equal(config.settings.gap, 6, "gap")
         R.equal(config.settings.screenGap, 12, "screen_gap")
         R.equal(config.settings.menuIcon, "macwindow", "menu_icon")
-        R.equal(config.positions.count, 1, "one position")
-        R.equal(config.positions[0].name, "left-half", "name")
-        R.ok(config.positions[0].kind == .cell(CellRect(x: 0, y: 0, w: 8, h: 8)), "cell kind")
-        R.equal(config.positions[0].key?.keyCode, UInt32(kVK_LeftArrow), "bound key")
+
+        let customs = config.positions.filter { !$0.isBuiltin }
+        R.equal(customs.count, 1, "one custom position")
+        R.equal(customs.first?.code, "reading", "code")
+        R.equal(customs.first?.isBuiltin, false, "custom is not built-in")
+        R.ok(customs.first?.kind == .cell(CellRect(x: 0, y: 0, w: 8, h: 8)), "cell kind")
+        R.equal(customs.first?.key?.keyCode, UInt32(kVK_LeftArrow), "bound key")
+    }
+
+    R.noThrow("built-ins are present even with an empty config") {
+        let config = try ConfigLoader.parse("""
+        [settings]
+        columns = 24
+        """)
+        R.equal(config.positions.count, BuiltinPositions.specs.count, "only the built-ins")
+        let lh = config.positions.first { $0.code == "left-half" }
+        R.equal(lh?.isBuiltin, true, "left-half is built-in")
+        R.equal(lh?.name, "Left Half", "built-in display name")
+        R.equal(lh?.category, "Basic Layout", "built-in category")
+        R.equal(lh?.key?.keyCode, UInt32(kVK_LeftArrow), "built-in default key")
+        R.ok(lh?.kind == .cell(CellRect(x: 0, y: 0, w: 12, h: 12)), "built-in geometry")
+    }
+
+    R.noThrow("keybindings override and unbind built-ins") {
+        let config = try ConfigLoader.parse("""
+        [keybindings]
+        left-half = "cmd+ctrl+h"
+        maximize = ""
+        """)
+        let lh = config.positions.first { $0.code == "left-half" }
+        R.equal(lh?.key?.keyCode, UInt32(kVK_ANSI_H), "override applied")
+        let mx = config.positions.first { $0.code == "maximize" }
+        R.ok(mx?.key == nil, "empty string unbinds")
+        let rh = config.positions.first { $0.code == "right-half" }
+        R.equal(rh?.key?.keyCode, UInt32(kVK_RightArrow), "untouched built-in keeps default")
+    }
+
+    R.noThrow("a built-in code in [[position]] is ignored") {
+        let config = try ConfigLoader.parse("""
+        [[position]]
+        code = "left-half"
+        cell = [0, 0, 1, 1]
+        key = "cmd+ctrl+z"
+        """)
+        let lefts = config.positions.filter { $0.code == "left-half" }
+        R.equal(lefts.count, 1, "no duplicate left-half")
+        R.ok(lefts.first?.isBuiltin == true, "kept the built-in")
+        R.ok(lefts.first?.kind == .cell(CellRect(x: 0, y: 0, w: 12, h: 12)), "built-in geometry, not [[position]]'s")
+        R.equal(config.positions.filter { !$0.isBuiltin }.count, 0, "colliding custom dropped")
+    }
+
+    R.noThrow("custom categories sit between Basic Layout and Displays") {
+        let config = try ConfigLoader.parse("""
+        [[position]]
+        code = "mine"
+        category = "Custom Layout"
+        cell = [0, 0, 6, 12]
+        """)
+        let lastBasic = config.positions.lastIndex { $0.category == "Basic Layout" }!
+        let mine = config.positions.firstIndex { $0.code == "mine" }!
+        let firstDisplay = config.positions.firstIndex { $0.category == "Displays" }!
+        R.ok(lastBasic < mine, "custom comes after Basic Layout")
+        R.ok(mine < firstDisplay, "custom comes before Displays")
+    }
+
+    R.noThrow("code, name, and category on custom positions") {
+        let config = try ConfigLoader.parse("""
+        [[position]]
+        code = "center-half"
+        name = "Center Half"
+        category = "Custom Layout"
+        cell = [6, 0, 12, 12]
+
+        [[position]]
+        code = "left-quarter"
+        cell = [0, 0, 6, 12]
+
+        [[position]]
+        name = "Right Quarter"
+        cell = [18, 0, 6, 12]
+        """)
+        let customs = config.positions.filter { !$0.isBuiltin }
+        R.equal(customs.count, 3, "three custom positions")
+        R.equal(customs[0].code, "center-half", "explicit code")
+        R.equal(customs[0].name, "Center Half", "explicit name")
+        R.equal(customs[0].category, "Custom Layout", "category")
+        // name derived from code
+        R.equal(customs[1].name, "Left Quarter", "name humanized from code")
+        R.ok(customs[1].category == nil, "no category → nil")
+        // code derived from name
+        R.equal(customs[2].code, "right-quarter", "code slugged from name")
     }
 
     R.noThrow("defaults when [settings] omitted") {
         let config = try ConfigLoader.parse("""
         [[position]]
-        name = "max"
+        code = "max"
         action = "maximize"
         """)
         R.equal(config.settings.columns, 24, "default columns")
         R.equal(config.settings.rows, 12, "default rows")
         R.equal(config.settings.menuIcon, "rectangle.3.group", "default menu_icon")
-        R.ok(config.positions.first?.kind == .maximize, "maximize action")
+        R.ok(config.positions.first { $0.code == "max" }?.kind == .maximize, "maximize action")
     }
 
     R.noThrow("action normalization") {
         let config = try ConfigLoader.parse("""
         [[position]]
-        name = "a"
+        code = "a"
         action = "previous-display"
         [[position]]
-        name = "b"
+        code = "b"
         action = "next_display"
         [[position]]
-        name = "c"
+        code = "c"
         action = "PrevDisplay"
         """)
-        R.ok(config.positions[0].kind == .previousDisplay, "hyphen: previous-display")
-        R.ok(config.positions[1].kind == .nextDisplay, "underscore: next_display")
-        R.ok(config.positions[2].kind == .previousDisplay, "case + alias: PrevDisplay")
+        R.ok(config.positions.first { $0.code == "a" }?.kind == .previousDisplay, "hyphen: previous-display")
+        R.ok(config.positions.first { $0.code == "b" }?.kind == .nextDisplay, "underscore: next_display")
+        R.ok(config.positions.first { $0.code == "c" }?.kind == .previousDisplay, "case + alias: PrevDisplay")
     }
 
-    R.noThrow("keyless position kept unbound") {
+    R.noThrow("keyless custom position kept unbound") {
         let config = try ConfigLoader.parse("""
         [[position]]
-        name = "reading"
+        code = "reading"
         cell = [6, 0, 12, 12]
         """)
-        R.equal(config.positions.count, 1, "kept")
-        R.ok(config.positions[0].key == nil, "unbound")
+        let customs = config.positions.filter { !$0.isBuiltin }
+        R.equal(customs.count, 1, "kept")
+        R.ok(customs.first?.key == nil, "unbound")
     }
 
-    R.noThrow("invalid entries skipped, not fatal") {
+    R.noThrow("invalid custom entries skipped, not fatal") {
         let config = try ConfigLoader.parse("""
         [[position]]
-        name = "ok"
+        code = "ok"
         cell = [0, 0, 1, 1]
         [[position]]
         cell = [0, 0, 1, 1]
         [[position]]
-        name = "bad-action"
+        code = "bad-action"
         action = "teleport"
         [[position]]
-        name = "no-kind"
+        code = "no-kind"
         """)
-        R.equal(config.positions.map(\.name), ["ok"], "only valid entry kept")
+        R.equal(config.positions.filter { !$0.isBuiltin }.map(\.code), ["ok"], "only valid custom kept")
     }
 
-    R.noThrow("bad key leaves position unbound") {
+    R.noThrow("bad key leaves custom position unbound") {
         let config = try ConfigLoader.parse("""
         [[position]]
-        name = "x"
+        code = "x"
         cell = [0, 0, 1, 1]
         key = "cmd+totally-not-a-key"
         """)
-        R.equal(config.positions.count, 1, "kept")
-        R.ok(config.positions[0].key == nil, "unbound on bad key")
+        let customs = config.positions.filter { !$0.isBuiltin }
+        R.equal(customs.count, 1, "kept")
+        R.ok(customs.first?.key == nil, "unbound on bad key")
     }
 
     R.throwsError("malformed TOML throws") { _ = try ConfigLoader.parse("this is = = not toml [") }
@@ -101,16 +190,69 @@ func runConfigTests() {
         let config = try ConfigLoader.parse(DefaultConfig.toml)
         R.ok(config.positions.count >= 17, "has at least 17 positions (got \(config.positions.count))")
 
-        let leftHalf = config.positions.first { $0.name == "left-half" }
+        let leftHalf = config.positions.first { $0.code == "left-half" }
+        R.ok(leftHalf?.isBuiltin == true, "left-half is built-in")
         R.ok(leftHalf?.kind == .cell(CellRect(x: 0, y: 0, w: 12, h: 12)), "left-half cell")
         R.ok(leftHalf?.key != nil, "left-half bound")
+        R.equal(leftHalf?.name, "Left Half", "left-half display name")
+        R.equal(leftHalf?.category, "Basic Layout", "left-half category")
 
         // center-third must dodge the ⌘⌃F "Enter Full Screen" system shortcut.
-        let centerThird = config.positions.first { $0.name == "center-third" }
+        let centerThird = config.positions.first { $0.code == "center-third" }
         R.equal(centerThird?.key?.keyCode, UInt32(kVK_ANSI_X), "center-third on X not F")
 
-        let center60 = config.positions.first { $0.name == "center-60" }
-        R.ok(center60 != nil, "center-60 present")
-        R.ok(center60?.key == nil, "center-60 keyless")
+        // The custom layouts ship in the default config under "Custom Layout".
+        let centerHalf = config.positions.first { $0.code == "center-half" }
+        R.ok(centerHalf?.isBuiltin == false, "center-half is custom")
+        R.ok(centerHalf?.kind == .cell(CellRect(x: 6, y: 0, w: 12, h: 12)), "center-half cell")
+        R.equal(centerHalf?.category, "Custom Layout", "center-half category")
+
+        // maximize / center / restore are built-in under Basic Layout.
+        let maximize = config.positions.first { $0.code == "maximize" }
+        R.equal(maximize?.category, "Basic Layout", "maximize under Basic Layout")
+        R.ok(maximize?.isBuiltin == true, "maximize is built-in")
+
+        let displays = config.positions.filter { $0.category == "Displays" }
+        R.equal(displays.count, 2, "two display throws")
+    }
+}
+
+func runAppInfoTests() {
+    R.suite("AppInfo")
+    let label = AppInfo.versionLabel
+    R.ok(!label.isEmpty, "version label is non-empty")
+    // Under `swift run` there is no versioned bundle → "dev"; a packaged app → "vX.Y.Z".
+    R.ok(label == "dev" || label.hasPrefix("v"), "label is 'dev' or 'vX.Y.Z' — got \(label)")
+}
+
+func runMenuLayoutTests() {
+    R.suite("MenuLayout")
+
+    func pos(_ code: String, _ category: String?, _ kind: PositionKind) -> Position {
+        Position(code: code, name: code, category: category, kind: kind, key: nil)
+    }
+    let unit = PositionKind.cell(CellRect(x: 0, y: 0, w: 1, h: 1))
+
+    R.noThrow("default-style grouping clusters layouts, sets Displays apart") {
+        let positions = [
+            pos("left-half", "Basic Layout", unit),
+            pos("maximize", "Basic Layout", .maximize),
+            pos("center-half", "Custom Layout", unit),
+            pos("next", "Displays", .nextDisplay),
+            pos("prev", "Displays", .previousDisplay),
+        ]
+        let sections = MenuLayout.sections(for: positions)
+        R.equal(sections.map(\.title), ["Basic Layout", "Custom Layout", "Displays"], "three categories in order")
+        R.equal(sections[0].separatorBefore, false, "first: no separator")
+        R.equal(sections[1].separatorBefore, false, "Custom hugs Basic")
+        R.equal(sections[2].separatorBefore, true, "Displays set apart")
+        R.equal(sections[0].positionIndices, [0, 1], "Basic Layout keeps both members")
+    }
+
+    R.noThrow("uncategorized config → single inline section") {
+        let positions = [pos("a", nil, unit), pos("b", nil, unit)]
+        let sections = MenuLayout.sections(for: positions)
+        R.equal(sections.count, 1, "one section")
+        R.equal(sections[0].title, "", "empty title → rendered inline")
     }
 }

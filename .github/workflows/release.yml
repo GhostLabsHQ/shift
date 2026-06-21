@@ -19,7 +19,8 @@ jobs:
         run: swift run ShiftTests
 
       - name: Build universal Shift.app
-        run: ARCHS="arm64 x86_64" ./scripts/build-app.sh
+        # Tag is like "v0.1.0"; strip the leading "v" for CFBundleShortVersionString.
+        run: VERSION="${GITHUB_REF_NAME#v}" ARCHS="arm64 x86_64" ./scripts/build-app.sh
 
       - name: Stage release asset
         run: |

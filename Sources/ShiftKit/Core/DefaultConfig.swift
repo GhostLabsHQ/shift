@@ -1,18 +1,29 @@
 import Foundation
 
 /// The TOML written to ~/.config/shift/config.toml on first launch.
-/// Layout maps the classic Magnet/Nudge positions onto a 24x12 grid, using
-/// ⌘⌃ (cmd+ctrl) as the modifier; display throws use ⌘⌃⌥.
+///
+/// Built-in positions (Basic Layout + Displays) live in the app; the config can
+/// only rebind their shortcuts via [keybindings]. Custom positions are fully
+/// user-owned via [[position]] blocks.
 enum DefaultConfig {
     static let toml = """
     # Shift configuration — https://github.com/GhostLabsHQ/shift
     #
     # The screen's usable area (minus menu bar / Dock) is divided into a grid.
-    # A position's `cell = [x, y, w, h]` is in grid units with a TOP-LEFT origin:
+    # A `cell = [x, y, w, h]` is in grid units with a TOP-LEFT origin:
     #   x = columns from the left,  y = rows from the top,
     #   w = width in columns,       h = height in rows.
     #
-    # `key` is optional. Positions without a key still appear in the menu bar.
+    # There are two kinds of positions:
+    #
+    #  • Built-in (Basic Layout + Displays) — baked into the app. You can't add,
+    #    remove, or move them, but you CAN change their shortcut in [keybindings]
+    #    below (key by `code`; set to "" to unbind, or delete the line to keep
+    #    the default).
+    #
+    #  • Custom — fully yours. Add / edit / remove the [[position]] blocks at the
+    #    bottom. Each needs a `code`, a `cell` or `action`, and an optional `key`.
+    #
     # Keys: cmd / ctrl / alt(opt) / shift  +  a-z, 0-9, arrows, return, space,
     #       tab, delete, esc, f1-f12, punctuation.   e.g. "cmd+ctrl+left"
     #
@@ -27,106 +38,90 @@ enum DefaultConfig {
     # "rectangle.grid.2x2"), a path to a template PNG/PDF, or literal text/emoji.
     menu_icon = "rectangle.3.group"
 
-    # ── Halves ───────────────────────────────────────────────
+    # ── Built-in shortcuts ───────────────────────────────────
+    # Rebind any built-in here. Delete a line to keep its default; set "" to unbind.
+    [keybindings]
+    # Halves
+    left-half        = "cmd+ctrl+left"
+    right-half       = "cmd+ctrl+right"
+    top-half         = "cmd+ctrl+up"
+    bottom-half      = "cmd+ctrl+down"
+    # Quarters
+    top-left         = "cmd+ctrl+u"
+    top-right        = "cmd+ctrl+i"
+    bottom-left      = "cmd+ctrl+j"
+    bottom-right     = "cmd+ctrl+k"
+    # Thirds
+    left-third       = "cmd+ctrl+d"
+    center-third     = "cmd+ctrl+x"        # ⌘⌃F is the macOS "Enter Full Screen" shortcut
+    right-third      = "cmd+ctrl+g"
+    # Two-thirds
+    left-two-thirds  = "cmd+ctrl+e"
+    right-two-thirds = "cmd+ctrl+t"
+    # Window actions
+    maximize         = "cmd+ctrl+return"
+    center           = "cmd+ctrl+c"
+    restore          = "cmd+ctrl+delete"
+    # Displays
+    next-display     = "cmd+ctrl+alt+right"
+    prev-display     = "cmd+ctrl+alt+left"
+
+    # ── Custom Layout — your own positions ───────────────────
     [[position]]
-    name = "left-half"
-    cell = [0, 0, 12, 12]
-    key  = "cmd+ctrl+left"
+    code = "center-half"
+    name = "Center Half"
+    category = "Custom Layout"
+    cell = [6, 0, 12, 12]       # 50% width, 100% height, centered
+    key  = "cmd+ctrl+1"
 
     [[position]]
-    name = "right-half"
-    cell = [12, 0, 12, 12]
-    key  = "cmd+ctrl+right"
+    code = "left-quarter"
+    name = "Left Quarter"
+    category = "Custom Layout"
+    cell = [0, 0, 6, 12]        # 25% width, 100% height
+    key  = "cmd+ctrl+2"
 
     [[position]]
-    name = "top-half"
-    cell = [0, 0, 24, 6]
-    key  = "cmd+ctrl+up"
+    code = "left-quarter-top"
+    name = "Left Quarter (Top)"
+    category = "Custom Layout"
+    cell = [0, 0, 6, 6]         # 25% width, top 50% height
+    key  = "cmd+ctrl+shift+2"
 
     [[position]]
-    name = "bottom-half"
-    cell = [0, 6, 24, 6]
-    key  = "cmd+ctrl+down"
-
-    # ── Quarters ─────────────────────────────────────────────
-    [[position]]
-    name = "top-left"
-    cell = [0, 0, 12, 6]
-    key  = "cmd+ctrl+u"
+    code = "left-quarter-bottom"
+    name = "Left Quarter (Bottom)"
+    category = "Custom Layout"
+    cell = [0, 6, 6, 6]         # 25% width, bottom 50% height
+    key  = "cmd+ctrl+alt+2"
 
     [[position]]
-    name = "top-right"
-    cell = [12, 0, 12, 6]
-    key  = "cmd+ctrl+i"
+    code = "right-quarter"
+    name = "Right Quarter"
+    category = "Custom Layout"
+    cell = [18, 0, 6, 12]       # 25% width, 100% height
+    key  = "cmd+ctrl+3"
 
     [[position]]
-    name = "bottom-left"
-    cell = [0, 6, 12, 6]
-    key  = "cmd+ctrl+j"
+    code = "right-quarter-top"
+    name = "Right Quarter (Top)"
+    category = "Custom Layout"
+    cell = [18, 0, 6, 6]        # 25% width, top 50% height
+    key  = "cmd+ctrl+shift+3"
 
     [[position]]
-    name = "bottom-right"
-    cell = [12, 6, 12, 6]
-    key  = "cmd+ctrl+k"
+    code = "right-quarter-bottom"
+    name = "Right Quarter (Bottom)"
+    category = "Custom Layout"
+    cell = [18, 6, 6, 6]        # 25% width, bottom 50% height
+    key  = "cmd+ctrl+alt+3"
 
-    # ── Thirds (24 / 3 = 8 columns each) ─────────────────────
-    [[position]]
-    name = "left-third"
-    cell = [0, 0, 8, 12]
-    key  = "cmd+ctrl+d"
-
-    [[position]]
-    name = "center-third"
-    cell = [8, 0, 8, 12]
-    key  = "cmd+ctrl+x"        # NB: ⌘⌃F is the macOS "Enter Full Screen" shortcut, so center-third uses X
-
-    [[position]]
-    name = "right-third"
-    cell = [16, 0, 8, 12]
-    key  = "cmd+ctrl+g"
-
-    # ── Two-thirds ───────────────────────────────────────────
-    [[position]]
-    name = "left-two-thirds"
-    cell = [0, 0, 16, 12]
-    key  = "cmd+ctrl+e"
-
-    [[position]]
-    name = "right-two-thirds"
-    cell = [8, 0, 16, 12]
-    key  = "cmd+ctrl+t"
-
-    # ── Specials ─────────────────────────────────────────────
-    [[position]]
-    name = "maximize"
-    action = "maximize"
-    key  = "cmd+ctrl+return"
-
-    [[position]]
-    name = "center"
-    action = "center"          # centers, keeping the window's current size
-    key  = "cmd+ctrl+c"
-
-    [[position]]
-    name = "restore"
-    action = "restore"         # restore the pre-move frame
-    key  = "cmd+ctrl+delete"
-
-    # ── Move to other monitors ───────────────────────────────
-    [[position]]
-    name = "next-display"
-    action = "next-display"
-    key  = "cmd+ctrl+alt+right"
-
-    [[position]]
-    name = "prev-display"
-    action = "previous-display"
-    key  = "cmd+ctrl+alt+left"
-
-    # ── Example: a keyless position (menu-only) ──────────────
-    [[position]]
-    name = "center-60"
-    cell = [5, 2, 14, 8]       # a centered 14x8 block; no key, trigger from the menu
+    # ── Example: a keyless, menu-only custom position ────────
+    # [[position]]
+    # code = "reading"
+    # name = "Reading"
+    # category = "Custom Layout"
+    # cell = [5, 2, 14, 8]
 
     """
 }

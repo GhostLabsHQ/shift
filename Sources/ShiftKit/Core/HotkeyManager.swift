@@ -51,7 +51,7 @@ final class HotkeyManager {
             if status == noErr, let ref = ref {
                 hotkeyRefs.append(ref)
             } else {
-                FileLog.write("FAILED to register \(position.name) (\(key.raw)) status=\(status) — key may be taken by the system or another app")
+                FileLog.write("FAILED to register \(position.code) (\(key.raw)) status=\(status) — key may be taken by the system or another app")
             }
         }
         FileLog.write("registered \(hotkeyRefs.count) hotkeys")

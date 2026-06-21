@@ -59,7 +59,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     @objc private func populate() {
         menu.removeAllItems()
 
-        let header = NSMenuItem(title: "Shift", action: nil, keyEquivalent: "")
+        let header = NSMenuItem(title: "Shift (\(AppInfo.versionLabel))", action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)
         menu.addItem(.separator())
@@ -72,18 +72,14 @@ final class StatusBarController: NSObject, NSMenuDelegate {
                 empty.isEnabled = false
                 menu.addItem(empty)
             } else {
-                for (index, position) in positions.enumerated() {
-                    let suffix = position.key.map { "   \(KeyParser.display($0))" } ?? ""
-                    let item = NSMenuItem(title: position.name + suffix, action: #selector(applyPosition(_:)), keyEquivalent: "")
-                    item.target = self
-                    item.tag = index
-                    menu.addItem(item)
-                }
+                addPositionGroups(positions)
             }
             menu.addItem(.separator())
-            addAction(title: "Reload Config", selector: #selector(reloadConfig))
-            addAction(title: "Open Config…", selector: #selector(openConfig))
-            addAction(title: "Reveal Config in Finder", selector: #selector(revealConfig))
+            let configMenu = NSMenu()
+            addAction(title: "Reload Config", selector: #selector(reloadConfig), to: configMenu)
+            addAction(title: "Open Config…", selector: #selector(openConfig), to: configMenu)
+            addAction(title: "Reveal Config in Finder", selector: #selector(revealConfig), to: configMenu)
+            addSubmenu(title: "Config", submenu: configMenu)
         } else {
             // No access → only the warning (clicking it opens System Settings).
             let warn = NSMenuItem(title: "⚠ Grant Accessibility access…", action: #selector(openAccessibility), keyEquivalent: "")
@@ -92,10 +88,40 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
-        addAction(title: "Quit Shift", selector: #selector(quit), keyEquivalent: "q")
+        addAction(title: "Quit Shift", selector: #selector(quit), keyEquivalent: "q", to: menu)
     }
 
-    private func addAction(title: String, selector: Selector, keyEquivalent: String = "") {
+    /// Renders each `category` as a parent menu item whose submenu holds the
+    /// positions. Separators between categories come from `MenuLayout`. An
+    /// uncategorized config (empty title) is rendered as loose top-level items.
+    private func addPositionGroups(_ positions: [Position]) {
+        for section in MenuLayout.sections(for: positions) {
+            if section.separatorBefore { menu.addItem(.separator()) }
+            if section.title.isEmpty {
+                for index in section.positionIndices { addPositionItem(positions[index], index: index, to: menu) }
+            } else {
+                let submenu = NSMenu()
+                for index in section.positionIndices { addPositionItem(positions[index], index: index, to: submenu) }
+                addSubmenu(title: section.title, submenu: submenu)
+            }
+        }
+    }
+
+    private func addPositionItem(_ position: Position, index: Int, to menu: NSMenu) {
+        let suffix = position.key.map { "   \(KeyParser.display($0))" } ?? ""
+        let item = NSMenuItem(title: position.name + suffix, action: #selector(applyPosition(_:)), keyEquivalent: "")
+        item.target = self
+        item.tag = index
+        menu.addItem(item)
+    }
+
+    private func addSubmenu(title: String, submenu: NSMenu) {
+        let parent = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        parent.submenu = submenu
+        menu.addItem(parent)
+    }
+
+    private func addAction(title: String, selector: Selector, keyEquivalent: String = "", to menu: NSMenu) {
         let item = NSMenuItem(title: title, action: selector, keyEquivalent: keyEquivalent)
         item.target = self
         menu.addItem(item)

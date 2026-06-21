@@ -30,9 +30,12 @@ struct Keybinding: Equatable {
 /// A named position in the registry. `key` is optional — keyless positions are
 /// still listed in the menu and triggerable from there.
 struct Position {
-    let name: String
+    let code: String           // stable identifier (kebab-case), e.g. "left-half"
+    let name: String           // friendly display name shown in the menu, e.g. "Left Half"
+    let category: String?      // menu grouping, e.g. "Basic Layout"; nil = uncategorized
     let kind: PositionKind
     let key: Keybinding?
+    var isBuiltin: Bool = false // baked into the app; only its key is configurable
 }
 
 /// Grid + behavior settings from the `[settings]` table.

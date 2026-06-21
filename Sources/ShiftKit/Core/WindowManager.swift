@@ -87,7 +87,7 @@ final class WindowManager {
                 setSize(of: axWin, to: cgFrame.size)
             }
         default:
-            FileLog.write("apply: '\(position.name)' not supported via SkyLight fallback")
+            FileLog.write("apply: '\(position.code)' not supported via SkyLight fallback")
         }
     }
 
