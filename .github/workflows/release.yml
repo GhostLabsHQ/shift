@@ -1,0 +1,47 @@
+name: Release
+
+# Cut a release by pushing a tag, e.g.:
+#   git tag v0.1.0 && git push origin v0.1.0
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write          # required to create the GitHub Release
+
+jobs:
+  release:
+    runs-on: macos-latest  # GitHub macOS runners ship full Xcode → universal builds work
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tests
+        run: swift run ShiftTests
+
+      - name: Build universal Shift.app
+        run: ARCHS="arm64 x86_64" ./scripts/build-app.sh
+
+      - name: Stage release asset
+        run: |
+          mkdir -p out
+          cp dist/Shift.zip "out/Shift-${GITHUB_REF_NAME}-macos-universal.zip"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*.zip
+          generate_release_notes: true
+          append_body: true
+          fail_on_unmatched_files: true
+          body: |
+            ### Install
+
+            Unzip and move **Shift.app** to `/Applications`. This build is ad-hoc
+            signed (not notarized), so on first launch clear the quarantine flag:
+
+            ```bash
+            xattr -dr com.apple.quarantine /Applications/Shift.app
+            ```
+
+            Then grant **Accessibility** when prompted (System Settings → Privacy
+            & Security → Accessibility).

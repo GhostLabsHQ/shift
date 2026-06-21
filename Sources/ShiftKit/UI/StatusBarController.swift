@@ -1,0 +1,141 @@
+import Cocoa
+
+/// Menu-bar UI: lists every registered position (click to apply to the focused
+/// window) plus config actions. The menu is rebuilt every time it opens, so the
+/// Accessibility status always reflects reality (and starts the hotkey engine
+/// the moment access is granted).
+final class StatusBarController: NSObject, NSMenuDelegate {
+    private var statusItem: NSStatusItem!
+    private let menu = NSMenu()
+
+    func setup() {
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        menu.delegate = self
+        statusItem.menu = menu
+        applyIcon()
+        populate()
+        NotificationCenter.default.addObserver(self, selector: #selector(onConfigReloaded), name: .configReloaded, object: nil)
+    }
+
+    @objc private func onConfigReloaded() {
+        applyIcon()
+        populate()
+    }
+
+    /// Sets the menu-bar icon from `settings.menu_icon`, which may be an SF Symbol
+    /// name, a path to a template image, or literal text/emoji.
+    private func applyIcon() {
+        guard let button = statusItem.button else { return }
+        let spec = Config.shared.current.settings.menuIcon
+        button.image = nil
+        button.title = ""
+
+        // 1. A file path to a custom image (sized to fit the menu bar).
+        let path = (spec as NSString).expandingTildeInPath
+        if spec.contains("/"), let image = NSImage(contentsOfFile: path) {
+            let h: CGFloat = 18
+            image.size = NSSize(width: h * (image.size.width / max(image.size.height, 1)), height: h)
+            image.isTemplate = true
+            button.image = image
+            return
+        }
+        // 2. An SF Symbol name.
+        if let image = NSImage(systemSymbolName: spec, accessibilityDescription: "Shift") {
+            image.isTemplate = true
+            button.image = image
+            return
+        }
+        // 3. Fall back to literal text / emoji.
+        button.title = spec.isEmpty ? "⌗" : spec
+    }
+
+    // Rebuilds contents right before the menu is shown → always-fresh status.
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        // If access was granted out-of-band, make sure the engine is running.
+        if AXIsProcessTrusted() { HotkeyManager.shared.start() }
+        populate()
+    }
+
+    @objc private func populate() {
+        menu.removeAllItems()
+
+        let header = NSMenuItem(title: "Shift", action: nil, keyEquivalent: "")
+        header.isEnabled = false
+        menu.addItem(header)
+        menu.addItem(.separator())
+
+        if AXIsProcessTrusted() {
+            // We can move windows → show the shortcuts and config actions.
+            let positions = Config.shared.current.positions
+            if positions.isEmpty {
+                let empty = NSMenuItem(title: "No positions configured", action: nil, keyEquivalent: "")
+                empty.isEnabled = false
+                menu.addItem(empty)
+            } else {
+                for (index, position) in positions.enumerated() {
+                    let suffix = position.key.map { "   \(KeyParser.display($0))" } ?? ""
+                    let item = NSMenuItem(title: position.name + suffix, action: #selector(applyPosition(_:)), keyEquivalent: "")
+                    item.target = self
+                    item.tag = index
+                    menu.addItem(item)
+                }
+            }
+            menu.addItem(.separator())
+            addAction(title: "Reload Config", selector: #selector(reloadConfig))
+            addAction(title: "Open Config…", selector: #selector(openConfig))
+            addAction(title: "Reveal Config in Finder", selector: #selector(revealConfig))
+        } else {
+            // No access → only the warning (clicking it opens System Settings).
+            let warn = NSMenuItem(title: "⚠ Grant Accessibility access…", action: #selector(openAccessibility), keyEquivalent: "")
+            warn.target = self
+            menu.addItem(warn)
+        }
+
+        menu.addItem(.separator())
+        addAction(title: "Quit Shift", selector: #selector(quit), keyEquivalent: "q")
+    }
+
+    private func addAction(title: String, selector: Selector, keyEquivalent: String = "") {
+        let item = NSMenuItem(title: title, action: selector, keyEquivalent: keyEquivalent)
+        item.target = self
+        menu.addItem(item)
+    }
+
+    // MARK: - Actions
+
+    @objc private func applyPosition(_ sender: NSMenuItem) {
+        let positions = Config.shared.current.positions
+        guard sender.tag >= 0, sender.tag < positions.count else { return }
+        WindowManager.shared.apply(positions[sender.tag])
+    }
+
+    @objc private func reloadConfig() {
+        Config.shared.reload()
+        HotkeyManager.shared.reload()
+    }
+
+    @objc private func openConfig() {
+        NSWorkspace.shared.open(Config.fileURL)
+    }
+
+    @objc private func revealConfig() {
+        NSWorkspace.shared.activateFileViewerSelecting([Config.fileURL])
+    }
+
+    @objc private func openAccessibility() {
+        AccessibilityHelper.shared.requestAccessAndPoll { granted in
+            guard granted else { return }
+            DispatchQueue.main.async {
+                HotkeyManager.shared.start()
+                self.populate()
+            }
+        }
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    @objc private func quit() {
+        NSApp.terminate(nil)
+    }
+}

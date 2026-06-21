@@ -1,0 +1,22 @@
+# Xcode / build
+build/
+DerivedData/
+*.xcodeproj
+!project.yml
+*.xcworkspace
+xcuserdata/
+*.xcuserstate
+
+# SwiftPM
+.swiftpm/
+.build/
+Package.resolved
+
+# Distribution output
+dist/
+
+# macOS
+.DS_Store
+
+# Local debug log
+*.profraw
