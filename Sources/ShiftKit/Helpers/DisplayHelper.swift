@@ -37,13 +37,13 @@ final class DisplayHelper {
 
     func nextScreen(from current: NSScreen) -> NSScreen? {
         let screens = sortedScreens
-        guard screens.count > 1, let idx = screens.firstIndex(of: current), idx + 1 < screens.count else { return nil }
-        return screens[idx + 1]
+        guard screens.count > 1, let idx = screens.firstIndex(of: current) else { return nil }
+        return screens[(idx + 1) % screens.count]                 // wraps last → first
     }
 
     func previousScreen(from current: NSScreen) -> NSScreen? {
         let screens = sortedScreens
-        guard screens.count > 1, let idx = screens.firstIndex(of: current), idx - 1 >= 0 else { return nil }
-        return screens[idx - 1]
+        guard screens.count > 1, let idx = screens.firstIndex(of: current) else { return nil }
+        return screens[(idx - 1 + screens.count) % screens.count] // wraps first → last
     }
 }
