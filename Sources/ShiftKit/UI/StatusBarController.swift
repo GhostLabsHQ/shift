@@ -80,6 +80,16 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             addAction(title: "Open Config…", selector: #selector(openConfig), to: configMenu)
             addAction(title: "Reveal Config in Finder", selector: #selector(revealConfig), to: configMenu)
             addSubmenu(title: "Config", submenu: configMenu)
+
+            if #available(macOS 13.0, *) {
+                menu.addItem(.separator())
+                let login = NSMenuItem(title: "Start at Login",
+                                       action: #selector(toggleLaunchAtLogin),
+                                       keyEquivalent: "")
+                login.target = self
+                login.state = LoginItem.isEnabled ? .on : .off
+                menu.addItem(login)
+            }
         } else {
             // No access → only the warning (clicking it opens System Settings).
             let warn = NSMenuItem(title: "⚠ Grant Accessibility access…", action: #selector(openAccessibility), keyEquivalent: "")
@@ -146,6 +156,12 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func revealConfig() {
         NSWorkspace.shared.activateFileViewerSelecting([Config.fileURL])
+    }
+
+    @available(macOS 13.0, *)
+    @objc private func toggleLaunchAtLogin() {
+        LoginItem.setEnabled(!LoginItem.isEnabled)
+        populate()   // refresh the checkmark
     }
 
     @objc private func openAccessibility() {
